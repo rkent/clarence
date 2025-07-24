@@ -1,0 +1,13 @@
+# adapted from https://dev.to/ifenna__/adding-colors-to-bash-scripts-48g4
+BOLDRED="\e[1;31m"
+BOLDYELLOW="\e[01;33m"
+ENDCOLOR="\e[0m"
+PS1="${BOLDRED}${debian_chroot:+($debian_chroot)}\u@${BOLDYELLOW}\h:${BOLDRED}\w $ ${ENDCOLOR}"
+
+export LS_OPTS='--color=auto'
+alias ls='ls ${LS_OPTS}'
+alias rd="rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y"
+alias gl='git log --decorate --pretty=format:"%Cblue%h %Cred%as %Cgreen%s %Cblue%an %Cred%d" --graph --all'
+alias ac='. venv/bin/activate'
+alias da='deactivate'
+alias ve='python -m venv venv;. venv/bin/activate'
