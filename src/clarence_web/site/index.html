@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clarence Web Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+</head>
+<body>
+  <h1>Clarence Web Control</h1>
+  <h2>LED1 Control</h2>
+  <div class="btn-group" role="group" aria-label="LED Control">
+  <button type="button" class="btn btn-success" onclick="setLed1(false, true)">LED1 Green</button>
+  <button type="button" class="btn btn-danger" onclick="setLed1(true, false)">LED1 Red</button>
+  <button type="button" class="btn btn-warning" onclick="setLed1(true, true)">LED1 Yellow</button>
+  <button type="button" class="btn btn-secondary" onclick="setLed1(false, false)">LED1 Off</button>
+  </div>
+  <h2>LED2 Control</h2>
+  <div class="btn-group" role="group" aria-label="LED Control">
+  <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
+  <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
+  </div>
+  <script>
+    // Initialize ROS connection
+    const ros = new ROSLIB.Ros({
+      url: 'ws://pi5.local:9090' // Adjust the URL as needed
+    });
+
+    ros.on('connection', function() {
+      console.log('Connected to ROS');
+    });
+
+    ros.on('error', function(error) {
+      console.error('Error connecting to ROS:', error);
+    });
+
+    ros.on('close', function() {
+      console.log('Connection to ROS closed');
+    });
+
+    // Example of publishing a message
+    const ledPublisher = new ROSLIB.Topic({
+      ros: ros,
+      name: '/set_led',
+      messageType: 'gpio_leds_msgs/Led'
+    });
+
+    function setLed(light, isOn) {
+      const ledMessage = new ROSLIB.Message({
+        number: light,
+        is_on: isOn
+      });
+      ledPublisher.publish(ledMessage);
+    }
+
+    function setLed1(red, green) {
+      console.log(`Setting LED1: Red=${red}, Green=${green}`);
+      setLed(23, red);
+      setLed(24, green);
+    }
+  
+    // setLed(24, true); // Example: Turn on LED on GPIO 24
+  </script>
+</body>

@@ -23,7 +23,7 @@ class Subscriber(Node):
 
 
     def listener_callback(self, msg):
-        self.get_logger().debug(f'I heard an LED request {msg.number} {msg.is_on}')
+        self.get_logger().info(f'I heard an LED request {msg.number} {msg.is_on}')
         if msg.number not in self.inited_leds:
             self.inited_leds.add(msg.number)
             GPIO.setup(msg.number, GPIO.OUT)

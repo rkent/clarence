@@ -1,0 +1,20 @@
+%YAML 1.2
+---
+launch:
+  - include:
+      file: "$(find-pkg-share rosbridge_server)/launch/rosbridge_websocket_launch.xml"
+  - node:
+      pkg: "gpio_leds"
+      exec: "led_node"
+      name: "leds"
+      output: "screen"
+  - node:
+      pkg: "clarence"
+      exec: "clarence"
+      name: "clarence"
+      output: "screen"
+  - node:
+      pkg: "clarence_web"
+      exec: "web_server"
+      name: "clarence_web"
+      output: "screen"
