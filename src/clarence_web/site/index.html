@@ -8,18 +8,39 @@
     <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
 </head>
 <body>
-  <h1>Clarence Web Control</h1>
-  <h2>LED1 Control</h2>
-  <div class="btn-group" role="group" aria-label="LED Control">
-  <button type="button" class="btn btn-success" onclick="setLed1(false, true)">LED1 Green</button>
-  <button type="button" class="btn btn-danger" onclick="setLed1(true, false)">LED1 Red</button>
-  <button type="button" class="btn btn-warning" onclick="setLed1(true, true)">LED1 Yellow</button>
-  <button type="button" class="btn btn-secondary" onclick="setLed1(false, false)">LED1 Off</button>
-  </div>
-  <h2>LED2 Control</h2>
-  <div class="btn-group" role="group" aria-label="LED Control">
-  <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
-  <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
+  <h1 class="text-center">Clarence Web Control</h1>
+  <div class="container">
+    <div class="row align-items-start">
+      <div class="col">
+        <h2>Battery State</h2>
+        <table class="table">
+          <tr>
+            <th scope="col">Voltage</th>
+            <th scope="col">Current</th>
+            <th scope="col">Percentage</th>
+          </tr>
+          <tr>
+            <td scope="row"><span id="voltage">--</span> V</td>
+            <td><span id="current">--</span> A</td>
+            <td><span id="percentage">--</span> %</td>
+          </tr>
+        </table>
+      </div>
+      <div class="col">
+        <h2>LED1 Control</h2>
+        <div class="btn-group" role="group" aria-label="LED Control">
+          <button type="button" class="btn btn-success" onclick="setLed1(false, true)">LED1 Green</button>
+          <button type="button" class="btn btn-danger" onclick="setLed1(true, false)">LED1 Red</button>
+          <button type="button" class="btn btn-warning" onclick="setLed1(true, true)">LED1 Yellow</button>
+          <button type="button" class="btn btn-secondary" onclick="setLed1(false, false)">LED1 Off</button>
+        </div>
+        <h2>LED2 Control</h2>
+        <div class="btn-group" role="group" aria-label="LED Control">
+          <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
+          <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
+        </div>
+      </div>
+    </div>
   </div>
   <script>
     // Initialize ROS connection
@@ -60,6 +81,16 @@
       setLed(24, green);
     }
   
-    // setLed(24, true); // Example: Turn on LED on GPIO 24
+    // Subscribe to BatteryState topic
+    const batterySubscriber = new ROSLIB.Topic({
+      ros: ros,
+      name: '/ups_state',
+      messageType: 'sensor_msgs/BatteryState'
+    });
+    batterySubscriber.subscribe(function(message) {
+      document.getElementById('voltage').textContent = message.voltage.toFixed(2);
+      document.getElementById('current').textContent = message.current.toFixed(2);
+      document.getElementById('percentage').textContent = (message.percentage * 100).toFixed(1);
+    });
   </script>
 </body>
