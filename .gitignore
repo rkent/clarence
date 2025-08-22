@@ -7,3 +7,4 @@ lib/
 *.pcd
 *.pyc
 docker/.gitconfig
+**/venv
