@@ -18,3 +18,8 @@ launch:
       exec: "web_server"
       name: "clarence_web"
       output: "screen"
+  - node:
+      pkg: "waveshare_3s_ups"
+      exec: "node"
+      name: "waveshare_3s_ups"
+      output: "screen"
