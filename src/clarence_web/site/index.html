@@ -39,6 +39,23 @@
           <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
           <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
         </div>
+        <hr>
+        <h2>Servo Control</h2>
+        <div class="mb-3">
+          <label for="servoNumber" class="form-label">Servo Number (0-15)</label>
+          <input type="number" class="form-control" id="servoNumber" min="0" max="15" value="0">
+        </div>
+        <div class="mb-3">
+          <label for="servoPosition" class="form-label">Position (0-100)</label>
+          <input type="number" class="form-control" id="servoPosition" min="0" max="100" value="50">
+        </div>
+        <div class="btn-group" role="group" aria-label="Servo Control">
+          <button type="button" class="btn btn-primary" onclick="
+            const number = parseInt(document.getElementById('servoNumber').value);
+            const position = parseFloat(document.getElementById('servoPosition').value);
+            const servoMessage = new ROSLIB.Message({number: number, position: position});
+            servoPublisher.publish(servoMessage);
+          ">Set Servo</button>
       </div>
     </div>
   </div>
@@ -91,6 +108,12 @@
       document.getElementById('voltage').textContent = message.voltage.toFixed(2);
       document.getElementById('current').textContent = message.current.toFixed(2);
       document.getElementById('percentage').textContent = (message.percentage * 100).toFixed(1);
+    });
+    // Servo Control
+    const servoPublisher = new ROSLIB.Topic({
+      ros: ros,
+      name: '/set_servo',
+      messageType: 'pca9685_servos_msgs/Servo'
     });
   </script>
 </body>
