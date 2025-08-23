@@ -23,3 +23,8 @@ launch:
       exec: "node"
       name: "waveshare_3s_ups"
       output: "screen"
+  - node:
+      pkg: "pca9685_servos_node"
+      exec: "pca9685_servos_node"
+      name: "pca9685_servos_node"
+      output: "screen"
