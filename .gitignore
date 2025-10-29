@@ -6,5 +6,6 @@ lib/
 
 *.pcd
 *.pyc
-docker/.gitconfig
+docker
+src/audio_common/
 **/venv

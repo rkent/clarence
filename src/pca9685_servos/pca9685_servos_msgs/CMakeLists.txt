@@ -10,6 +10,8 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Servo.msg"
+  "msg/ServoCalibration.msg"
+  "msg/ServoByTicks.msg"
 )
 
 ament_package()

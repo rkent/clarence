@@ -1,7 +1,9 @@
 import http.server
-import socketserver
 import os
-
+import rclpy
+import socketserver
+import signal
+import threading
 
 def main():
     print(f'Hi from clarence_web at {os.getcwd()}')
@@ -9,7 +11,6 @@ def main():
     # may raise PackageNotFoundError
     package_share_directory = get_package_share_directory('clarence_web')
     print(f'Package share directory: {package_share_directory}')
-    # exit(0)
 
 
     # --- Configuration ---
@@ -34,14 +35,35 @@ def main():
 
     # Handler to serve files from the new current directory
     Handler = http.server.SimpleHTTPRequestHandler
+    server = socketserver.TCPServer(("", PORT), Handler)
+
+    def run_server():
+        with server:
+            print(f"Serving at port {PORT}")
+            server.serve_forever()
+
+    server_thread = threading.Thread(target=run_server)
+
+    def signal_handler(sig, frame):
+        print('Signal received, shutting down the web server...')
+        server.shutdown()
+        server_thread.join()
+        rclpy.shutdown()
+        exit(0)
 
     # Create and start the server
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"Serving files from: {SERVE_DIRECTORY}")
-        print(f"Access the server at: http://localhost:{PORT}")
-        httpd.serve_forever()
-        print("Server stopped.")
-        rospy.shutdown()
+    # server_thread.daemon = True
+    server_thread.start()
+    signal.signal(signal.SIGINT, signal_handler)
+    print(f"Serving files from: {SERVE_DIRECTORY}")
+    print(f"Access the server at: http://localhost:{PORT}")
+
+    with server:
+        try:
+            server.serve_forever()
+        except Exception as e:
+            print(f"Web server has shut down: {e}")
+        server_thread.join()
 
 
 if __name__ == '__main__':

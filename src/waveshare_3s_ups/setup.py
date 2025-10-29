@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'node = waveshare_3s_ups.node:main'
+            'waveshare_3s_ups = waveshare_3s_ups.waveshare_3s_ups:main'
         ],
     },
 )

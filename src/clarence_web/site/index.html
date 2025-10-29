@@ -11,7 +11,7 @@
   <h1 class="text-center">Clarence Web Control</h1>
   <div class="container">
     <div class="row align-items-start">
-      <div class="col">
+      <div class="col-md-6">
         <h2>Battery State</h2>
         <table class="table">
           <tr>
@@ -25,8 +25,6 @@
             <td><span id="percentage">--</span> %</td>
           </tr>
         </table>
-      </div>
-      <div class="col">
         <h2>LED1 Control</h2>
         <div class="btn-group" role="group" aria-label="LED Control">
           <button type="button" class="btn btn-success" onclick="setLed1(false, true)">LED1 Green</button>
@@ -39,23 +37,34 @@
           <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
           <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
         </div>
+      </div>
+      <div class="col-md-6">
         <hr>
         <h2>Servo Control</h2>
         <div class="mb-3">
           <label for="servoNumber" class="form-label">Servo Number (0-15)</label>
           <input type="number" class="form-control" id="servoNumber" min="0" max="15" value="0">
         </div>
-        <div class="mb-3">
-          <label for="servoPosition" class="form-label">Position (0-100)</label>
-          <input type="number" class="form-control" id="servoPosition" min="0" max="100" value="50">
+        <div class="row">
+          <div class="col">
+            <div class="mb-3">
+              <label for="servoPercentPosition" class="form-label">Percent Position (0-100)</label>
+              <input type="number" class="form-control" id="servoPercentPosition" min="0" max="100" value="50">
+            </div>
+            <div class="btn-group" role="group" aria-label="Servo Percent Control">
+              <button type="button" class="btn btn-primary" onclick="publishServoMessage()">Set Servo</button>
+            </div>
+          </div>
+          <div class="col">
+            <div class="mb-3">
+              <label for="servoTickPosition" class="form-label">Tick Position (500-2500)</label>
+              <input type="number" class="form-control" id="servoTickPosition" min="500" max="2500" value="1500">
+            </div>
+            <div class="btn-group" role="group" aria-label="Servo Tick Control">
+              <button type="button" class="btn btn-primary" onclick="publishTickMessage()">Set Servo</button>
+            </div>
+          </div>
         </div>
-        <div class="btn-group" role="group" aria-label="Servo Control">
-          <button type="button" class="btn btn-primary" onclick="
-            const number = parseInt(document.getElementById('servoNumber').value);
-            const position = parseFloat(document.getElementById('servoPosition').value);
-            const servoMessage = new ROSLIB.Message({number: number, position: position});
-            servoPublisher.publish(servoMessage);
-          ">Set Servo</button>
       </div>
     </div>
   </div>
@@ -97,7 +106,21 @@
       setLed(23, red);
       setLed(24, green);
     }
-  
+
+    function publishServoMessage() {
+        const number = parseInt(document.getElementById('servoNumber').value);
+        const position = parseFloat(document.getElementById('servoPercentPosition').value);
+        const servoMessage = new ROSLIB.Message({number: number, position: position});
+        servoPublisher.publish(servoMessage);
+    }
+
+    function publishTickMessage() {
+        const number = parseInt(document.getElementById('servoNumber').value);
+        const ticks = parseInt(document.getElementById('servoTickPosition').value);
+        const servoTickMessage = new ROSLIB.Message({number: number, ticks: ticks});
+        servoTickPublisher.publish(servoTickMessage);
+    }
+
     // Subscribe to BatteryState topic
     const batterySubscriber = new ROSLIB.Topic({
       ros: ros,
@@ -109,11 +132,34 @@
       document.getElementById('current').textContent = message.current.toFixed(2);
       document.getElementById('percentage').textContent = (message.percentage * 100).toFixed(1);
     });
+
     // Servo Control
+    document.getElementById("servoPercentPosition").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+          // Action to perform when Enter is pressed
+          event.preventDefault(); // Prevent default form submission if applicable
+          // Call a function, submit a form, or trigger other actions
+          publishServoMessage();
+      }
+    });
+    document.getElementById("servoTickPosition").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+          // Action to perform when Enter is pressed
+          event.preventDefault(); // Prevent default form submission if applicable
+          // Call a function, submit a form, or trigger other actions
+          publishTickMessage();
+      }
+  });
     const servoPublisher = new ROSLIB.Topic({
       ros: ros,
       name: '/set_servo',
       messageType: 'pca9685_servos_msgs/Servo'
     });
+    const servoTickPublisher = new ROSLIB.Topic({
+      ros: ros,
+      name: '/set_servo_ticks',
+      messageType: 'pca9685_servos_msgs/ServoByTicks'
+    });
+
   </script>
 </body>

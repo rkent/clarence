@@ -20,7 +20,7 @@ launch:
       output: "screen"
   - node:
       pkg: "waveshare_3s_ups"
-      exec: "node"
+      exec: "waveshare_3s_ups"
       name: "waveshare_3s_ups"
       output: "screen"
   - node:
