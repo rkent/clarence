@@ -1,10 +1,12 @@
 function setupRosConnection() {
-  const ros = new ROSLIB.Ros({
-    url: 'ws://pi5.local:9090' // Adjust the URL as needed
-  });
+  const ros = new ROSLIB.Ros({});
+  //const ros = new ROSLIB.Ros({
+  //  url: 'ws://pi5.local:9090' // Adjust the URL as needed
+  //});
   
   ros.on('connection', function() {
     console.log('Connected to ROS');
+    subscribe_to_battery();
   });
 
   ros.on('error', function(error) {
@@ -79,7 +81,8 @@ function resetRosConnection() {
   if (!resetInProgress) {
     try {
       resetInProgress = true;
-      ros = setupRosConnection();
+      ros.close();
+      ros.connect('ws://pi5.local:9090');
       subscribe_to_battery();
     } catch (error) {
       console.error('Reconnection attempt failed:', error);
@@ -109,7 +112,7 @@ document.getElementById("servoTickPosition").addEventListener("keypress", functi
 });
 
 // Initialize ROS connection
-var ros = null
+var ros = setupRosConnection();
 var resetInProgress = false;
 resetRosConnection();
 
