@@ -12,56 +12,73 @@
   <div class="container">
     <div class="row align-items-start">
       <div class="col-md-6">
-        <h2>Battery State</h2>
-        <table class="table">
-          <tr>
-            <th scope="col">Voltage</th>
-            <th scope="col">Current</th>
-            <th scope="col">Percentage</th>
-          </tr>
-          <tr>
-            <td scope="row"><span id="voltage">--</span> V</td>
-            <td><span id="current">--</span> A</td>
-            <td><span id="percentage">--</span> %</td>
-          </tr>
-        </table>
-        <h2>LED1 Control</h2>
-        <div class="btn-group" role="group" aria-label="LED Control">
-          <button type="button" class="btn btn-success" onclick="setLed1(false, true)">LED1 Green</button>
-          <button type="button" class="btn btn-danger" onclick="setLed1(true, false)">LED1 Red</button>
-          <button type="button" class="btn btn-warning" onclick="setLed1(true, true)">LED1 Yellow</button>
-          <button type="button" class="btn btn-secondary" onclick="setLed1(false, false)">LED1 Off</button>
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Battery State</h5>
+            <table class="table">
+              <tr>
+                <th scope="col">Voltage</th>
+                <th scope="col">Current</th>
+                <th scope="col">Percentage</th>
+              </tr>
+              <tr>
+                <td scope="row"><span id="voltage">--</span> V</td>
+                <td><span id="current">--</span> A</td>
+                <td><span id="percentage">--</span> %</td>
+              </tr>
+            </table>
+          </div>
         </div>
-        <h2>LED2 Control</h2>
-        <div class="btn-group" role="group" aria-label="LED Control">
-          <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
-          <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
+        <div class="card mt-2">
+          <div class="card-body">
+            <h5 class="card-title">LED Control</h5>
+            <div class="btn-group" role="group" aria-label="LED Control">
+              <button type="button" class="btn btn-success" onclick="setLed1(false, true)">LED1 Green</button>
+              <button type="button" class="btn btn-danger" onclick="setLed1(true, false)">LED1 Red</button>
+              <button type="button" class="btn btn-warning" onclick="setLed1(true, true)">LED1 Yellow</button>
+              <button type="button" class="btn btn-secondary" onclick="setLed1(false, false)">LED1 Off</button>
+            </div>
+            <div class="btn-group" role="group" aria-label="LED Control">
+              <button type="button" class="btn btn-warning" onclick="setLed(25, true)">LED2 Yellow</button>
+              <button type="button" class="btn btn-secondary" onclick="setLed(25, false)">LED2 Off</button>
+            </div>
+          </div>
+        </div>
+        <div class="card mt-2">
+          <div class="card-body">
+            <h5 class="card-title">CPU status</h5>
+            <p class="card-text">Temperature: <span id="cpuTemperature">--</span> °C</p>
+            <p class="card-text">Usage: <span id="cpuPercent">--</span> %</p>
+          </div>
         </div>
       </div>
       <div class="col-md-6">
-        <hr>
-        <h2>Servo Control</h2>
-        <div class="mb-3">
-          <label for="servoNumber" class="form-label">Servo Number (0-15)</label>
-          <input type="number" class="form-control" id="servoNumber" min="0" max="15" value="0">
-        </div>
-        <div class="row">
-          <div class="col">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Servo Control</h5>
             <div class="mb-3">
-              <label for="servoPercentPosition" class="form-label">Percent Position (0-100)</label>
-              <input type="number" class="form-control" id="servoPercentPosition" min="0" max="100" value="50">
+              <label for="servoNumber" class="form-label">Servo Number (0-15)</label>
+              <input type="number" class="form-control" id="servoNumber" min="0" max="15" value="0">
             </div>
-            <div class="btn-group" role="group" aria-label="Servo Percent Control">
-              <button type="button" class="btn btn-primary" onclick="publishServoMessage()">Set Servo</button>
-            </div>
-          </div>
-          <div class="col">
-            <div class="mb-3">
-              <label for="servoTickPosition" class="form-label">Tick Position (500-2500)</label>
-              <input type="number" class="form-control" id="servoTickPosition" min="500" max="2500" value="1500">
-            </div>
-            <div class="btn-group" role="group" aria-label="Servo Tick Control">
-              <button type="button" class="btn btn-primary" onclick="publishTickMessage()">Set Servo</button>
+            <div class="row">
+              <div class="col">
+                <div class="mb-3">
+                  <label for="servoPercentPosition" class="form-label">Percent Position (0-100)</label>
+                  <input type="number" class="form-control" id="servoPercentPosition" min="0" max="100" value="50">
+                </div>
+                <div class="btn-group" role="group" aria-label="Servo Percent Control">
+                  <button type="button" class="btn btn-primary" onclick="publishServoMessage()">Set Servo</button>
+                </div>
+              </div>
+              <div class="col">
+                <div class="mb-3">
+                  <label for="servoTickPosition" class="form-label">Tick Position (500-2500)</label>
+                  <input type="number" class="form-control" id="servoTickPosition" min="500" max="2500" value="1500">
+                </div>
+                <div class="btn-group" role="group" aria-label="Servo Tick Control">
+                  <button type="button" class="btn btn-primary" onclick="publishTickMessage()">Set Servo</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

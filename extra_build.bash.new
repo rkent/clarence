@@ -1,0 +1,93 @@
+export EXTRA_BUILD_RUN="
+groupadd -g $(getent group i2c | cut -d: -f3) i2c -U $(whoami)
+groupadd -g $(getent group gpio | cut -d: -f3) gpio -U $(whoami)
+usermod -aG audio $(whoami)
+usermod -aG video $(whoami)
+
+# Sound setup
+cat > /etc/asound.conf <<EOF
+# ALSA configuration for:
+# 1) Waveshare USB sound out
+# 2) I2C mike inputs
+#
+# Copy this file to /etc/asound.conf to enable.
+
+# Waveshare usb out
+pcm.speakerdirect {
+  type hw card Device
+  # Note that 'Device' is not a keyword, but the weird name Waveshare gave to its usb device
+  hint {
+    description \"Direct hardware device for Waveshare USB\"
+  }
+}
+
+pcm.speakermixer {
+  type dmix
+  ipc_key 102
+  ipc_perm 0666
+  slave {
+    pcm speakerdirect
+    channels 2
+  }
+  hint.description \"non-convert Mixer for Waveshare USB\"
+}
+
+ctl.speakermixer {
+  type hw card Device
+}
+
+pcm.speaker {
+  type plug
+  slave.pcm speakermixer
+  hint.description \"mixer for Waveshare USB with full conversions\"
+}
+
+pcm.softvol {
+  type softvol
+  slave.pcm speaker
+  control.name PCM
+  control.card 0
+  hint.description \"softvol for Waveshare USB\"
+}
+
+ctl.softvol {
+  type hw card Device
+}
+
+# I2C mike input
+pcm.mikedirect {
+  type hw
+  card sndrpigooglevoi
+  hint.description \"Direct hardware for microphone\"
+}
+
+pcm.mikesoftvol {
+  type softvol
+  slave {
+    pcm  \"mikedirect\"
+  }
+  control {
+    name \"Mike\"
+    card sndrpigooglevoi
+  }
+  max_dB 20.0
+  min_dB -40.0
+  hint.description \"Softmax for Microphone\"
+}
+
+pcm.mike {
+  type plug
+  slave.pcm mikesoftvol
+  hint.description \"Mike with full conversions\"
+}
+
+# defaults
+
+pcm.!default {
+  type asym
+  playback.pcm \"softvol\"
+  capture.pcm "mike"
+}
+EOF
+"
+#export EXTRA_BUILD_ARGS="--no-cache"

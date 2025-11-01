@@ -8,7 +8,7 @@
   <license>Apache-2.0</license>
 
   <exec_depend>pca9685_servos_msgs</exec_depend>
-  <exec_depend>python-smbus</exec_depend>
+  <exec_depend>python3-smbus</exec_depend>
   <exec_depend>rclpy</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

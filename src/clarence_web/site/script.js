@@ -7,6 +7,8 @@ function setupRosConnection() {
   ros.on('connection', function() {
     console.log('Connected to ROS');
     subscribe_to_battery();
+    subscribe_to_cpu_temperature();
+    subscribe_to_cpu_percent();
   });
 
   ros.on('error', function(error) {
@@ -77,13 +79,38 @@ function subscribe_to_battery() {
   });
 }
 
+function subscribe_to_cpu_temperature() {
+  // Subscribe to CPU Temperature topic
+  const tempSubscriber = new ROSLIB.Topic({
+    ros: ros,
+    name: '/cpu_temperature',
+    messageType: 'sensor_msgs/Temperature'
+  });
+  tempSubscriber.subscribe(function(message) {
+    console.log('Received CPU Temperature:', message.temperature);
+    document.getElementById('cpuTemperature').textContent = message.temperature.toFixed(2);
+  });
+}
+
+function subscribe_to_cpu_percent() {
+  // Subscribe to CPU Percent topic
+  const cpuPercentSubscriber = new ROSLIB.Topic({
+    ros: ros,
+    name: '/cpu_percent',
+    messageType: 'std_msgs/Float32'
+  });
+  cpuPercentSubscriber.subscribe(function(message) {
+    console.log('Received CPU Percent:', message.data);
+    document.getElementById('cpuPercent').textContent = message.data.toFixed(1);
+  });
+}
+
 function resetRosConnection() {
   if (!resetInProgress) {
     try {
       resetInProgress = true;
       ros.close();
       ros.connect('ws://pi5.local:9090');
-      subscribe_to_battery();
     } catch (error) {
       console.error('Reconnection attempt failed:', error);
     }
@@ -121,6 +148,8 @@ var watchdogTimer = setInterval(function() {
     document.getElementById('voltage').textContent = '--';
     document.getElementById('current').textContent = '--';
     document.getElementById('percentage').textContent = '--';
+    document.getElementById('cpuTemperature').textContent = '--';
+    document.getElementById('cpuPercent').textContent = '--';
 
     console.log('ROS connection lost. Attempting to reconnect...');
     try {

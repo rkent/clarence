@@ -9,3 +9,4 @@ lib/
 docker
 src/audio_common/
 **/venv
+.packages
