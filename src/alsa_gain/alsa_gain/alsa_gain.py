@@ -10,6 +10,12 @@ class AlsaGainNode(Node):
         super().__init__('alsa_gain_node')
 
         self.publisher = self.create_publisher(AlsaGain, 'alsa_gain', 10)
+        self.subscriber = self.create_subscription(
+            AlsaGain,
+            'alsa_gain_set',
+            self.handle_set_gain,
+            10
+        )
 
         # Declare and read ROS2 parameters for mixer control and device
         self.declare_parameter('control', 'Master')
@@ -30,6 +36,37 @@ class AlsaGainNode(Node):
 
         # Set up a timer to publish gain information at the specified rate
         self.timer = self.create_timer(publish_rate, self.publish_gain)
+
+    def handle_set_gain(self, msg: AlsaGain):
+        if not self.mixer_thread.ready:
+            self.get_logger().warning("Mixer not ready yet, cannot set gain.")
+            return
+        percent = msg.percent
+        muted = msg.muted
+        if percent is None or muted is None:
+            self.get_logger().warning("Invalid gain info received, ignoring set request.")
+            return
+        self.get_logger().info(f"Received Set Gain Request: percent: {percent}, muted: {muted}")
+        # Only set changes to prevent excessive ALSA calls and ROS messages
+        percent = [int(val) for val in percent]
+        s_percent = self.mixer_thread.volume
+        percent_changed = False
+        if len(s_percent) == len(percent) and s_percent != percent:
+            percent_changed = True
+        elif len(percent) == 1 and any(s_percent[i] != percent[0] for i in range(len(s_percent))):
+            percent_changed = True
+        if percent_changed:
+            self.mixer_thread.volume = percent
+        muted = [bool(val) for val in muted]
+        s_muted = self.mixer_thread.muted
+        muted_changed = False
+        if len(s_muted) == len(muted) and s_muted != muted:
+            muted_changed = True
+        elif len(muted) == 1 and any(s_muted[i] != muted[0] for i in range(len(s_muted))):
+            muted_changed = True
+        if muted_changed:
+            self.get_logger().info(f"Setting muted to {muted} compared to {self.mixer_thread.muted}")
+            self.mixer_thread.muted = muted
 
     def publish_gain(self):
         if not self.mixer_thread.ready:

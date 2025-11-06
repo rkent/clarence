@@ -46,7 +46,7 @@ class MixerThread:
         """
         if self.mixer and value is not None:
             message = {"command": "set_volume", "volume": value}
-            os.write(self.write_fd, json.dumps(message).encode('utf-8'))
+            os.write(self.write_fd, (json.dumps(message) + '\n').encode('utf-8'))
         else:
             logger.warning("Mixer object is not initialized; cannot set volume.")
 
@@ -64,12 +64,11 @@ class MixerThread:
         or a list of bools for per-channel mute.
         """
         logger.info("Setting muted to %s in setter", value)
-        val = bool(value)
 
         if self.mixer:
-            message = {"command": "set_mute", "mute": val}
-            os.write(self.write_fd, json.dumps(message).encode('utf-8'))
-            logger.info("Property set: muted -> %s", val)
+            message = {"command": "set_mute", "mute": value}
+            os.write(self.write_fd, (json.dumps(message) + '\n').encode('utf-8'))
+            logger.info("Property set: muted -> %s", value)
         else:
             logger.warning("Mixer object is not initialized; cannot set mute.")
 
@@ -176,12 +175,12 @@ class MixerThread:
 
     def set_alsa_mute(self, mute: bool, channel: int | None = None) -> None:
         if self.mixer:
+            logger.info(f"Set alsa mute to {mute} channel {channel}")
             try:
                 if type(channel) is int:
-                    self.mixer.setmute(bool(mute), channel=channel)
+                    self.mixer.setmute(bool(mute), channel)
                 else:
                     self.mixer.setmute(bool(mute))
-                logger.info("Set alsa mute to %s", mute)
             except aa.ALSAAudioError as e:
                 logger.error("Error setting alsa mute: %s", e)
         else:
@@ -189,12 +188,12 @@ class MixerThread:
 
     def set_alsa_volume(self, volume: int, channel: int | None = None) -> None:
         if self.mixer:
+            logger.info(f"Set alsa volume to {volume} channel {channel}")
             try:
                 if type(channel) is int:
                     self.mixer.setvolume(volume, channel=channel)
                 else:
                     self.mixer.setvolume(volume)
-                logger.info("Set alsa volume to %d", volume)
             except aa.ALSAAudioError as e:
                 logger.error("Error setting alsa volume: %s", e)
         else:
@@ -232,24 +231,39 @@ class MixerThread:
                 pass
             return
         else:
-            logger.info("Received message: %s", data.decode('utf-8'))
-            message = json.loads(data.decode('utf-8'))
-            if message.get("command") == "set_mute":
-                mute = message.get("mute", False)
-                if type(mute) in (list, tuple):
-                    for channel in range(len(mute)):
-                        self.set_alsa_mute(mute[channel], channel)
+            if not self.mixer:
+                logger.warning("Mixer object is not initialized; cannot process message.")
+                return
+            data = data.decode('utf-8')
+            # More than one message could be received; handle them all
+            messages = data.splitlines()
+            for jmessage in messages:
+                logger.info("Received message: %s", jmessage)
+                message = json.loads(jmessage)
+                if message.get("command") == "set_mute":
+                    mute = message.get("mute", False)
+                    if type(mute) in (list, tuple):
+                        if all(item == mute[0] for item in mute):
+                           self.set_alsa_mute(bool(mute[0]))
+                        else:
+                            for channel in range(len(mute)):
+                                self.set_alsa_mute(bool(mute[channel]), channel)
+                    else:
+                        self.set_alsa_mute(bool(mute))
+                elif message.get("command") == "set_volume":
+                    volume = message.get("volume", 50)
+                    if type(volume) in (list, tuple):
+                        if all(item == volume[0] for item in volume):
+                            self.set_alsa_volume(int(volume[0]))
+                        else:
+                            for channel in range(len(volume)):
+                                self.set_alsa_volume(int(volume[channel]), channel)
+                    else:
+                        self.set_alsa_volume(int(volume))
                 else:
-                    self.set_alsa_mute(bool(mute))
-            elif message.get("command") == "set_volume":
-                volume = message.get("volume", 50)
-                if type(volume) in (list, tuple):
-                    for channel in range(len(volume)):
-                        self.set_alsa_volume(volume[channel], channel)
-                else:
-                    self.set_alsa_volume(volume)
-            else:
-                logger.warning("Unknown command received: %s", message.get("command"))
+                    logger.warning("Unknown command received: %s", message.get("command"))
+            # After processing, update the mixer status, since we do not seem to get an event.
+            self.update_mixer()
 
     def run(self):
         """A thread worker to monitor or inititiate ALSA mixer events."""
