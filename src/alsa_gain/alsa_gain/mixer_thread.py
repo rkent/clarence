@@ -13,12 +13,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MixerThread:
-    def __init__(self, control, device):
+    def __init__(self, control, device, publish_guard=None):
         self.mixer = None
         self.sel = selectors.DefaultSelector()
         self.lock = threading.Lock()
         self._volume = None
         self._muted = None
+        self.publish_guard = publish_guard
         self.control = control
         self.device = device
         self.read_fd, self.write_fd = os.pipe()
@@ -86,6 +87,8 @@ class MixerThread:
             logging.info(
                 f"Mixer event detected! New Volume: {self._volume}%, Muted: {self._muted}"
             )
+            if self.publish_guard:
+                self.publish_guard.trigger()
         else:
             logging.warning("Mixer object is not initialized.")
 

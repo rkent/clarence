@@ -21,8 +21,10 @@ class AlsaGainNode(Node):
 
         self.get_logger().info(f"Using mixer control='{self.control}', device='{self.device}'")
 
+        # guard condition used to trigger publish on changes
+        self.publish_guard = self.create_guard_condition(self.publish_gain)
         # Initialize the ALSA Mixer object
-        self.mixer_thread = MixerThread(self.control, self.device)
+        self.mixer_thread = MixerThread(self.control, self.device, self.publish_guard)
         self.thread = threading.Thread(target=self.mixer_thread.run)
         self.thread.start()
 
