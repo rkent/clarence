@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+import traceback
 import threading
 from alsa_gain_msgs.msg import AlsaGain
 from .mixer_thread import MixerThread
@@ -30,16 +31,25 @@ class AlsaGainNode(Node):
         self.timer = self.create_timer(publish_rate, self.publish_gain)
 
     def publish_gain(self):
+        if not self.mixer_thread.ready:
+            self.get_logger().warning("Mixer not ready yet, skipping publish.")
+            return
         msg = AlsaGain()
         msg.control = self.control
         msg.device = self.device
-        msg.percent = self.mixer_thread.volume
-        msg.decibels = self.mixer_thread.db
-        msg.muted = self.mixer_thread.muted
+        percent = self.mixer_thread.volume
+        decibels = self.mixer_thread.db
+        muted = self.mixer_thread.muted
+        if None in [percent, decibels, muted]:
+            self.get_logger().warning("Invalid gain info, skipping publish.")
+            return
+        msg.percent = percent
+        msg.decibels = decibels
+        msg.muted = muted
         self.publisher.publish(msg)
         self.get_logger().info(
             f"Published Gain: {msg.percent}%, "
-            f"Gain (dB): {msg.decibels}dB, Muted: {bool(msg.muted)}"
+            f"Gain (dB): {msg.decibels}dB, Muted: {msg.muted}"
         )
 
 def main(args=None):

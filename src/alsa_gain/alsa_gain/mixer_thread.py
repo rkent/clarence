@@ -9,7 +9,7 @@ import threading
 
 import alsaaudio as aa
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MixerThread:
@@ -24,6 +24,12 @@ class MixerThread:
         self.device = device
         self.read_fd, self.write_fd = os.pipe()
         self.shutdown_event = threading.Event()
+
+    @property
+    def ready(self) -> bool:
+        """Indicates if the mixer is initialized and ready."""
+        with self.lock:
+            return self.mixer is not None
 
     @property
     def volume(self) -> list[int]:
@@ -103,14 +109,62 @@ class MixerThread:
         if self.mixer is not None:
             logger.warning("Mixer is already being monitored.")
             return
+        # make sure the device is valid
+        playback_devices = aa.pcms(aa.PCM_PLAYBACK)
+        capture_devices = aa.pcms(aa.PCM_CAPTURE)
+        valid_playback = device in playback_devices
+        valid_capture = device in capture_devices
+        if not (valid_playback or valid_capture):
+            logger.warning(f"Invalid device '{device}' for mixer.")
+            logger.info(f"Available playback devices: {playback_devices}")
+            logger.info(f"Available capture devices: {capture_devices}")
+            return
+        # make sure the control is valid
         try:
-            self.mixer = aa.Mixer(control=control, device=device)
+            avail_controls = aa.mixers(device=device)
+        except aa.ALSAAudioError as e:
+            logger.error(f"Error retrieving available mixers, device '{device}' probably has no controls': {e}")
+            # which devices are available with controls?
+            # This may display a lot of errors, which I have been unsuccessful in suppressing.
+            logger.info("Checking which devices have available mixer controls. This may show a lot of 'ALSA lib' errors, ignore them")
+            valid_devices = set()
+            for playback_device in playback_devices:
+                try:
+                    mixers = aa.mixers(device=playback_device)
+                    if mixers:
+                        valid_devices.add(playback_device)
+                except aa.ALSAAudioError:
+                    pass
+            for capture_device in capture_devices:
+                try:
+                    mixers = aa.mixers(device=capture_device)
+                    if mixers:
+                        valid_devices.add(capture_device)
+                except aa.ALSAAudioError:
+                    pass
+            logger.info(f"Devices with available mixer controls: {valid_devices}")
+            return
+        if control not in avail_controls:
+            logger.warning(f"Invalid control '{control}' for device '{device}'.")
+            try:
+                avail_controls = aa.mixers(device=device)
+                logger.info(f"Available mixer controls on device '{device}': {avail_controls}")
+            except aa.ALSAAudioError as e2:
+                logger.error(f"Error retrieving available mixers, device '{device}': {e2}")
+            return
+        try:
+            with self.lock:
+                self.mixer = aa.Mixer(control=control, device=device)
         except aa.ALSAAudioError as e:
             logger.warning(f"Error opening mixer: {e}")
-            logger.info("Available mixers: %s", aa.mixers(cardindex=0))
+            try:
+                avail_controls = aa.mixers(device=device)
+                logger.info(f"Available mixer controls on device '{device}': {avail_controls}")
+            except aa.ALSAAudioError as e2:
+                logger.error(f"Error retrieving available mixers, device '{device}': {e2}")
             return
 
-        logger.info("Monitoring '%s' mixer", self.mixer.mixer())
+        logger.info(f"Monitoring '{self.mixer.mixer()}' control on device '{device}'")
 
         # Get the pollable file descriptor and event mask
         # polldescriptors() returns a list of tuples: [(fd, event_mask), ...]
@@ -170,12 +224,15 @@ class MixerThread:
         """Callback function to handle data when the read end of the pipe is ready."""
         MAX_BUFFER_SIZE = 1024
         data = os.read(read_fd, MAX_BUFFER_SIZE)
-        logger.info("Received data from pipe of length %d", len(data))
+        logger.debug("Received data from pipe of length %d", len(data))
         if not data:
-            # If read returns empty bytes, the write end is closed
-            logger.info("Main thread closed the pipe. Unregistering selector.")
-            self.sel.unregister(read_fd)
-            os.close(read_fd)
+            # If read returns empty bytes, the write end may be closed
+            if self.shutdown_event.is_set():
+                logger.info("Main thread closed the pipe. Unregistering selector.")
+                self.sel.unregister(read_fd)
+                os.close(read_fd)
+            else:
+                logger.info("Shutdown event not set, continuing message handler.")
         elif len(data) > MAX_BUFFER_SIZE:
             logger.error("Data length %d exceeds buffer size", len(data))
             # The remaining data will be lost
@@ -231,9 +288,11 @@ class MixerThread:
 
     def close(self):
         """Clean up resources. Callable from main thread."""
+        logger.info("Closing MixerThread.")
         if self.mixer:
             logger.info("Closing mixer.")
-            self.mixer = None
+            with self.lock:
+                self.mixer = None
         self.shutdown_event.set()
         os.close(self.write_fd)
 
