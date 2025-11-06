@@ -18,7 +18,6 @@ class MixerThread:
         self.sel = selectors.DefaultSelector()
         self.lock = threading.Lock()
         self._volume = None
-        self._db = None
         self._muted = None
         self.control = control
         self.device = device
@@ -27,7 +26,7 @@ class MixerThread:
 
     @property
     def ready(self) -> bool:
-        """Indicates if the mixer is initialized and ready."""
+        """Indicates if the mixer is initialized and ready. Thread-safe."""
         with self.lock:
             return self.mixer is not None
 
@@ -49,12 +48,6 @@ class MixerThread:
             os.write(self.write_fd, json.dumps(message).encode('utf-8'))
         else:
             logger.warning("Mixer object is not initialized; cannot set volume.")
-
-    @property
-    def db(self) -> list[float]:
-        """Thread-safe getter for current volume in dB."""
-        with self.lock:
-            return self._db
 
     @property
     def muted(self) -> list[bool]:
@@ -85,17 +78,13 @@ class MixerThread:
             # Now you can query the mixer for updated information
             mixer_obj = self.mixer
             volume = mixer_obj.getvolume(units=aa.VOLUME_UNITS_PERCENTAGE)
-            db = mixer_obj.getvolume(units=aa.VOLUME_UNITS_DB)
             muted = mixer_obj.getmute()
             with self.lock:
                 self._volume = volume
-                # db values are typically in hundredths of dB depending on backend.
-                self._db = [raw / 100.0 for raw in db]
                 self._muted = [bool(raw) for raw in muted]
 
             logging.info(
-                f"Mixer event detected! New Volume: {self._volume}%, "
-                f"New Volume (dB): {self._db}dB, Muted: {self._muted}"
+                f"Mixer event detected! New Volume: {self._volume}%, Muted: {self._muted}"
             )
         else:
             logging.warning("Mixer object is not initialized.")
