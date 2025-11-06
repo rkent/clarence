@@ -1,0 +1,267 @@
+# Run alsa mixer polling in a separate thread
+
+import json
+import logging
+import os
+import time
+import selectors
+import threading
+
+import alsaaudio as aa
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+class MixerThread:
+    def __init__(self, control, device):
+        self.mixer = None
+        self.sel = selectors.DefaultSelector()
+        self.lock = threading.Lock()
+        self._volume = None
+        self._db = None
+        self._muted = None
+        self.control = control
+        self.device = device
+        self.read_fd, self.write_fd = os.pipe()
+        self.shutdown_event = threading.Event()
+
+    @property
+    def volume(self) -> list[int]:
+        """Thread-safe getter for current volume (percentage)."""
+        with self.lock:
+            return self._volume
+
+    @volume.setter
+    def volume(self, value):
+        """Thread-safe setter for volume, typically used on main thread.
+
+        value can be an int, which sets all channels to that volume,
+        or a list of ints for per-channel volume.
+        """
+        if self.mixer and value is not None:
+            message = {"command": "set_volume", "volume": value}
+            os.write(self.write_fd, json.dumps(message).encode('utf-8'))
+        else:
+            logger.warning("Mixer object is not initialized; cannot set volume.")
+
+    @property
+    def db(self) -> list[float]:
+        """Thread-safe getter for current volume in dB."""
+        with self.lock:
+            return self._db
+
+    @property
+    def muted(self) -> list[bool]:
+        """Thread-safe getter for mute state."""
+        with self.lock:
+            return self._muted
+
+    @muted.setter
+    def muted(self, value):
+        """Thread-safe setter for mute, typically used on main thread.
+
+        value can be a bool, which sets all channels to that mute state,
+        or a list of bools for per-channel mute.
+        """
+        logger.info("Setting muted to %s in setter", value)
+        val = bool(value)
+
+        if self.mixer:
+            message = {"command": "set_mute", "mute": val}
+            os.write(self.write_fd, json.dumps(message).encode('utf-8'))
+            logger.info("Property set: muted -> %s", val)
+        else:
+            logger.warning("Mixer object is not initialized; cannot set mute.")
+
+    def update_mixer(self) -> None:
+        """Update the mixer status and store in thread-safe properties."""
+        if self.mixer:
+            # Now you can query the mixer for updated information
+            mixer_obj = self.mixer
+            volume = mixer_obj.getvolume(units=aa.VOLUME_UNITS_PERCENTAGE)
+            db = mixer_obj.getvolume(units=aa.VOLUME_UNITS_DB)
+            muted = mixer_obj.getmute()
+            with self.lock:
+                self._volume = volume
+                # db values are typically in hundredths of dB depending on backend.
+                self._db = [raw / 100.0 for raw in db]
+                self._muted = [bool(raw) for raw in muted]
+
+            logging.info(
+                f"Mixer event detected! New Volume: {self._volume}%, "
+                f"New Volume (dB): {self._db}dB, Muted: {self._muted}"
+            )
+        else:
+            logging.warning("Mixer object is not initialized.")
+
+
+    def register_mixer(self, control: str, device: str) -> None:
+        '''
+        # 1. Initialize the ALSA Mixer object
+        # Use the appropriate control name for your system (e.g., 'Master', 'PCM')
+        '''
+        if self.mixer is not None:
+            logger.warning("Mixer is already being monitored.")
+            return
+        try:
+            self.mixer = aa.Mixer(control=control, device=device)
+        except aa.ALSAAudioError as e:
+            logger.warning(f"Error opening mixer: {e}")
+            logger.info("Available mixers: %s", aa.mixers(cardindex=0))
+            return
+
+        logger.info("Monitoring '%s' mixer", self.mixer.mixer())
+
+        # Get the pollable file descriptor and event mask
+        # polldescriptors() returns a list of tuples: [(fd, event_mask), ...]
+        descriptors = self.mixer.polldescriptors()
+        if not descriptors:
+            logger.warning("Could not get poll descriptors for the mixer. Exiting.")
+            return
+
+        # In most cases, there will be only one descriptor
+        fd, event_mask = descriptors[0]
+
+        # Register the file descriptor with the selector and associate the callback
+        # The 'data' field stores the mixer object so the callback can access it.
+        mixer_data = {"params": None, "callback": self.handle_mixer_event}
+        self.sel.register(fd, selectors.EVENT_READ, data=mixer_data)
+        print("Registered mixer fd with selector.")
+
+    def set_alsa_mute(self, mute: bool, channel: int | None = None) -> None:
+        if self.mixer:
+            try:
+                if type(channel) is int:
+                    self.mixer.setmute(bool(mute), channel=channel)
+                else:
+                    self.mixer.setmute(bool(mute))
+                logger.info("Set alsa mute to %s", mute)
+            except aa.ALSAAudioError as e:
+                logger.error("Error setting alsa mute: %s", e)
+        else:
+            logger.warning("Mixer object is not initialized; cannot set mute.")
+
+    def set_alsa_volume(self, volume: int, channel: int | None = None) -> None:
+        if self.mixer:
+            try:
+                if type(channel) is int:
+                    self.mixer.setvolume(volume, channel=channel)
+                else:
+                    self.mixer.setvolume(volume)
+                logger.info("Set alsa volume to %d", volume)
+            except aa.ALSAAudioError as e:
+                logger.error("Error setting alsa volume: %s", e)
+        else:
+            logger.warning("Mixer object is not initialized; cannot set volume.")
+
+    def handle_mixer_event(self, _) -> None:
+        """Callback function to handle the event."""
+        # Read the event to clear the ALSA buffer and get the new volume/status
+        # We don't necessarily need the return values, but the read() call
+        # is necessary to process the event within ALSA's C library.
+        if self.mixer:
+            self.mixer.handleevents()
+            self.update_mixer()
+        else:
+            logging.warning("Mixer object is not initialized in event handler.")
+
+    def handle_message_event(self, _) -> None:
+        read_fd = self.read_fd
+        """Callback function to handle data when the read end of the pipe is ready."""
+        MAX_BUFFER_SIZE = 1024
+        data = os.read(read_fd, MAX_BUFFER_SIZE)
+        logger.info("Received data from pipe of length %d", len(data))
+        if not data:
+            # If read returns empty bytes, the write end is closed
+            logger.info("Main thread closed the pipe. Unregistering selector.")
+            self.sel.unregister(read_fd)
+            os.close(read_fd)
+        elif len(data) > MAX_BUFFER_SIZE:
+            logger.error("Data length %d exceeds buffer size", len(data))
+            # The remaining data will be lost
+            while os.read(read_fd, MAX_BUFFER_SIZE):
+                pass
+            return
+        else:
+            logger.info("Received message: %s", data.decode('utf-8'))
+            message = json.loads(data.decode('utf-8'))
+            if message.get("command") == "set_mute":
+                mute = message.get("mute", False)
+                if type(mute) in (list, tuple):
+                    for channel in range(len(mute)):
+                        self.set_alsa_mute(mute[channel], channel)
+                else:
+                    self.set_alsa_mute(bool(mute))
+            elif message.get("command") == "set_volume":
+                volume = message.get("volume", 50)
+                if type(volume) in (list, tuple):
+                    for channel in range(len(volume)):
+                        self.set_alsa_volume(volume[channel], channel)
+                else:
+                    self.set_alsa_volume(volume)
+            else:
+                logger.warning("Unknown command received: %s", message.get("command"))
+
+    def run(self):
+        """A thread worker to monitor or inititiate ALSA mixer events."""
+
+        # Register the read pipe
+        read_data = {"params": self.read_fd, "callback": self.handle_message_event}
+        self.sel.register(self.read_fd, selectors.EVENT_READ, data=read_data)
+        self.register_mixer(self.control, self.device)
+        self.update_mixer()
+
+        # Event loop
+        logger.info("Waiting for mixer events (Ctrl+C to exit)...")
+        while not self.shutdown_event.is_set():
+            # Wait for events without a timeout
+            ready_list = self.sel.select()
+            if not ready_list:
+                logger.info("Empty ready list, closing")
+                break
+
+            for key, _ in ready_list:
+                # Retrieve the stored data (mixer object and callback)
+                stored = key.data
+                callback = stored["callback"]
+
+                # Call the handler function
+                callback(stored["params"])
+        self.sel.close()
+
+    def close(self):
+        """Clean up resources. Callable from main thread."""
+        if self.mixer:
+            logger.info("Closing mixer.")
+            self.mixer = None
+        self.shutdown_event.set()
+        os.close(self.write_fd)
+
+if __name__ == "__main__":
+    control="Speaker"
+    device="speaker"
+    mixer_thread = MixerThread(control, device)
+    thread  = threading.Thread(target=mixer_thread.run)
+    thread.start()
+
+    print("Main thread started monitoring mixer. Sending commands...")
+
+    muted = False
+    count = 0
+    try:
+        while True:
+            logger.info(f"Main thread doing other work {count}")
+            time.sleep(2)
+            count += 1
+            if count % 5 == 0:
+                base_volume = 50 + (count % 50)
+                mixer_thread.volume = [base_volume, base_volume + 5]
+            else:
+                muted = not muted
+                mixer_thread.muted = muted
+
+    except KeyboardInterrupt:
+        print("Main thread interrupted by user.")
+    finally:
+        mixer_thread.close()  # This will fire the thread selector to exit
+        thread.join()

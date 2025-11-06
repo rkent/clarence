@@ -13,86 +13,72 @@ cat > /etc/asound.conf <<EOF
 #
 # Copy this file to /etc/asound.conf to enable.
 
-# Waveshare usb out
-pcm.speakerdirect {
-  type hw card Device
-  # Note that 'Device' is not a keyword, but the weird name Waveshare gave to its usb device
-  hint {
-    description "Direct hardware device for Waveshare USB"
-  }
-}
-
-pcm.speakermixer {
-  type dmix
-  ipc_key 102
-  ipc_perm 0666
-  slave {
-    pcm speakerdirect
-    channels 2
-  }
-  hint.description "non-convert Mixer for Waveshare USB"
-}
-
-ctl.speakermixer {
-  type hw card Device
-}
-
-pcm.speaker {
-  type plug
-  slave.pcm speakermixer
-  hint.description "mixer for Waveshare USB with full conversions"
-}
-
-pcm.softvol {
-  type softvol
-  slave.pcm speaker
-  control.name PCM
-  control.card 0
-  hint.description "softvol for Waveshare USB"
-}
-
-ctl.softvol {
-  type hw card Device
-}
-
 # I2C mike input
-pcm.mikedirect {
+pcm.mike_direct {
   type hw
   card sndrpigooglevoi
-  hint.description "Direct hardware for microphone"
+  hint.description "Direct hardware for ear mikes"
 }
 
-pcm.mikesoftvol {
+pcm.mike_softvol {
   type softvol
-  slave {
-    pcm  "mikedirect"
-  }
+  slave.pcm mike_dsnoop
   control {
-    name "Mike"
+    name "mike_softvol"
     card sndrpigooglevoi
   }
-  max_dB 20.0
-  min_dB -40.0
-  hint.description "Softmax for Microphone"
+  max_dB 30.0
+  min_dB -0.1
+  hint.description "Softmax for ear mikes"
+}
+
+ctl.mike_softvol {
+  type hw
+  card sndrpigooglevoi
+}
+
+pcm.mike_dsnoop {
+  type dsnoop
+  ipc_key 1023
+  slave.pcm mike_direct
+  hint.description "DSnoop splitter for ear mikes"
 }
 
 pcm.mike {
   type plug
-  slave.pcm mikesoftvol
-  hint.description "Mike with full conversions"
+  slave.pcm mike_softvol
+  hint.description "Ear mikes with full conversions"
+}
+ctl.mike {
+  type hw
+  card sndrpigooglevoi
+}
+
+# Waveshare USB sound output, map to default ALSA setup
+pcm.speaker {
+  type copy
+  slave.pcm "sysdefault:CARD=Device"
+  hint.description "Waveshare USB Sound Card (alias for default setup)"
+}
+ctl.speaker {
+  type hw
+  card Device
 }
 
 # defaults
 
 pcm.!default {
   type asym
-  playback.pcm "softvol"
+  playback.pcm "speaker"
   capture.pcm "mike"
+  hint.description "Default ALSA device, playback via Waveshare USB, capture via I2C ear mikes"
 }
+
+# The below just means that alsamixer with no arguments will control the I2C ear mikes
 ctl.!default {
   type hw
-  card Device
+  card sndrpigooglevoi
 }
 EOF
 '
-#export EXTRA_BUILD_ARGS="--no-cache"
+export EXTRA_BUILD_ARGS="--no-cache"
