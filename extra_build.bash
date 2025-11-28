@@ -1,8 +1,12 @@
-export EXTRA_BUILD_RUN="
-groupadd -g $(getent group i2c | cut -d: -f3) i2c -U $(whoami)
-groupadd -g $(getent group gpio | cut -d: -f3) gpio -U $(whoami)
+export EARLY_BUILD_RUN="
+groupadd -g $(getent group i2c | cut -d: -f3) i2c
+groupadd -g $(getent group gpio | cut -d: -f3) gpio
+"
+export LATE_BUILD_RUN="
 usermod -aG audio $(whoami)
+usermod -aG i2c $(whoami)
 usermod -aG video $(whoami)
+usermod -aG gpio $(whoami)
 
 # Sound setup
 cat > /etc/asound.conf <<EOF
@@ -80,3 +84,4 @@ ctl.!default {
 EOF
 "
 #export EXTRA_BUILD_ARGS="--no-cache"
+

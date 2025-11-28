@@ -77,7 +77,7 @@ class ServosNode(Node):
         self.get_logger().info(f'I heard a ServoByTicks request {msg.number} {msg.ticks}')
         pulse = max(self.minPulse, min(self.maxPulse, msg.ticks))
         self.pwm.setServoPulse(msg.number, pulse)
-        self.last = pulse
+        self.last[msg.number] = pulse
   
     def pulse_from_percent(self, percent):
         percent = max(0.0, min(100.0, percent))
