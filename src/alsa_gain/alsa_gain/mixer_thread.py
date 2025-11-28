@@ -24,6 +24,7 @@ class MixerThread:
         self.device = device
         self.read_fd, self.write_fd = os.pipe()
         self.shutdown_event = threading.Event()
+        self.mute_warned = False
 
     @property
     def ready(self) -> bool:
@@ -78,7 +79,13 @@ class MixerThread:
             # Now you can query the mixer for updated information
             mixer_obj = self.mixer
             volume = mixer_obj.getvolume(units=aa.VOLUME_UNITS_PERCENTAGE)
-            muted = mixer_obj.getmute()
+            try:
+                muted = mixer_obj.getmute()
+            except aa.ALSAAudioError:
+                muted = [0] * len(volume)  # Assume not muted if unsupported
+                if not self.mute_warned:
+                    logger.warning("Mixer does not support getmute(); assuming unmuted.")
+                    self.mute_warned = True
             with self.lock:
                 self._volume = volume
                 self._muted = [bool(raw) for raw in muted]
@@ -182,7 +189,9 @@ class MixerThread:
                 else:
                     self.mixer.setmute(bool(mute))
             except aa.ALSAAudioError as e:
-                logger.error("Error setting alsa mute: %s", e)
+                if not self.mute_warned:
+                    logger.warning("Mixer does not support setmute(); cannot set mute state.")
+                    self.mute_warned = True
         else:
             logger.warning("Mixer object is not initialized; cannot set mute.")
 
