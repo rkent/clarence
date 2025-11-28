@@ -3,8 +3,7 @@ groupadd -g $(getent group i2c | cut -d: -f3) i2c -U $(whoami)
 groupadd -g $(getent group gpio | cut -d: -f3) gpio -U $(whoami)
 usermod -aG audio $(whoami)
 usermod -aG video $(whoami)
-"
-EXTRA_BUILD_RUN+='
+
 # Sound setup
 cat > /etc/asound.conf <<EOF
 # ALSA configuration for:
@@ -17,19 +16,18 @@ cat > /etc/asound.conf <<EOF
 pcm.mike_direct {
   type hw
   card sndrpigooglevoi
-  hint.description "Direct hardware for ear mikes"
-}
+  hint.description 'Direct hardware for ear mikes'}
 
 pcm.mike_softvol {
   type softvol
   slave.pcm mike_dsnoop
   control {
-    name "mike_softvol"
+    name 'mike_softvol'
     card sndrpigooglevoi
   }
   max_dB 30.0
   min_dB -0.1
-  hint.description "Softmax for ear mikes"
+  hint.description 'Softmax for ear mikes'
 }
 
 ctl.mike_softvol {
@@ -41,13 +39,13 @@ pcm.mike_dsnoop {
   type dsnoop
   ipc_key 1023
   slave.pcm mike_direct
-  hint.description "DSnoop splitter for ear mikes"
+  hint.description 'DSnoop splitter for ear mikes'
 }
 
 pcm.mike {
   type plug
   slave.pcm mike_softvol
-  hint.description "Ear mikes with full conversions"
+  hint.description 'Ear mikes with full conversions'
 }
 ctl.mike {
   type hw
@@ -57,8 +55,8 @@ ctl.mike {
 # Waveshare USB sound output, map to default ALSA setup
 pcm.speaker {
   type copy
-  slave.pcm "sysdefault:CARD=Device"
-  hint.description "Waveshare USB Sound Card (alias for default setup)"
+  slave.pcm 'sysdefault:CARD=Device'
+  hint.description 'Waveshare USB Sound Card (alias for default setup)'
 }
 ctl.speaker {
   type hw
@@ -69,9 +67,9 @@ ctl.speaker {
 
 pcm.!default {
   type asym
-  playback.pcm "speaker"
-  capture.pcm "mike"
-  hint.description "Default ALSA device, playback via Waveshare USB, capture via I2C ear mikes"
+  playback.pcm 'speaker'
+  capture.pcm 'mike'
+  hint.description 'Default ALSA device, playback via Waveshare USB, capture via I2C ear mikes'
 }
 
 # The below just means that alsamixer with no arguments will control the I2C ear mikes
@@ -80,5 +78,5 @@ ctl.!default {
   card sndrpigooglevoi
 }
 EOF
-'
-export EXTRA_BUILD_ARGS="--no-cache"
+#export EXTRA_BUILD_ARGS="--no-cache"
+"
