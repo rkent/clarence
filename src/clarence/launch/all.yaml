@@ -28,3 +28,27 @@ launch:
       exec: "pca9685_servos_node"
       name: "pca9685_servos_node"
       output: "screen"
+  - node:
+      pkg: "alsa_gain"
+      exec: "alsa_gain"
+      name: "alsa_gain_speaker"
+      output: "screen"
+      param:
+      -
+        name: control
+        value: "Speaker"
+      -
+        name: device
+        value: "speaker"
+  - node:
+      pkg: "alsa_gain"
+      exec: "alsa_gain"
+      name: "alsa_gain_mike"
+      output: "screen"
+      param:
+      -
+        name: control
+        value: "mike_softvol"
+      -
+        name: device
+        value: "mike"
