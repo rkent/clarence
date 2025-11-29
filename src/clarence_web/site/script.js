@@ -9,6 +9,7 @@ function setupRosConnection() {
     subscribe_to_battery();
     subscribe_to_cpu_temperature();
     subscribe_to_cpu_percent();
+    subscribe_to_alsa_gain();
   });
 
   ros.on('error', function(error) {
@@ -53,6 +54,24 @@ function publishServoMessage() {
     servoPublisher.publish(servoMessage);
 }
 
+function publishAlsaGainMessage(device, control, percent) {
+  const muted = false;
+  
+  const alsaGainMessage = new ROSLIB.Message({
+    device: device,
+    control: control,
+    percent: [percent, percent],
+    muted: muted
+  });
+  
+  const alsaGainPublisher = new ROSLIB.Topic({
+    ros: ros,
+    name: '/alsa_gain_set',
+    messageType: 'alsa_gain_msgs/AlsaGain'
+  });
+  
+  alsaGainPublisher.publish(alsaGainMessage);
+}
 function publishTickMessage() {
     const number = parseInt(document.getElementById('servoNumber').value);
     const ticks = parseInt(document.getElementById('servoTickPosition').value);
@@ -105,6 +124,27 @@ function subscribe_to_cpu_percent() {
   });
 }
 
+function subscribe_to_alsa_gain() {
+  // Subscribe to ALSA Volume topic
+  const alsaGainSubscriber = new ROSLIB.Topic({
+    ros: ros,
+    name: '/alsa_gain',
+    messageType: 'alsa_gain_msgs/AlsaGain'
+  });
+  alsaGainSubscriber.subscribe(function(message) {
+    console.log('Received ALSA Gain:', message.percent);
+    if (message.device == 'speaker') {
+      document.getElementById('alsaSpeakerGain').textContent = message.percent[0].toFixed(0) + '%';
+      document.getElementById('alsaSpeakerMuted').textContent = message.muted[0] ? 'Yes' : 'No';
+    } else if (message.device == 'mike') {
+      document.getElementById('alsaMikeGain').textContent = message.percent[0].toFixed(0) + '%';
+      document.getElementById('alsaMikeMuted').textContent = message.muted[0] ? 'Yes' : 'No';
+    } else {
+      console.warn('Unknown ALSA device:', message.device);
+    }
+  });
+}
+
 function resetRosConnection() {
   if (!resetInProgress) {
     try {
@@ -138,6 +178,26 @@ document.getElementById("servoTickPosition").addEventListener("keypress", functi
   }
 });
 
+// ALSA Gain Control
+document.getElementById("speakerGainSlider").addEventListener("input", function(event) {
+    // Action to perform when Enter is pressed
+    event.preventDefault(); // Prevent default form submission if applicable
+    // Call a function, submit a form, or trigger other actions
+    const device ="speaker";
+    const control = "Speaker";
+    console.log(`Speaker Gain input, ${this.value}`);
+    publishAlsaGainMessage(device, control, parseInt(this.value));
+});
+// ALSA Gain Control
+document.getElementById("mikeGainSlider").addEventListener("input", function(event) {
+    // Action to perform when Enter is pressed
+    event.preventDefault(); // Prevent default form submission if applicable
+    // Call a function, submit a form, or trigger other actions
+    const device ="mike";
+    const control = "mike_softvol";
+    console.log(`Mike Gain input, ${this.value}`);
+    publishAlsaGainMessage(device, control, parseInt(this.value));
+});
 // Initialize ROS connection
 var ros = setupRosConnection();
 var resetInProgress = false;

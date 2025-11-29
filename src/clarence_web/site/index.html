@@ -82,6 +82,40 @@
             </div>
           </div>
         </div>
+        <div class="card mt-2">
+          <div class="card-body">
+            <h5 class="card-title">Audio Gain</h5>
+            <table class="table">
+              <tr>
+                <th scope="col">Device</th>
+                <th scope="col">Gain</th>
+                <th scope="col">Muted</th>
+              </tr>
+              <tr>
+                <td scope="row">speaker</td>
+                <td><span id="alsaSpeakerGain">--</span></td>
+                <td><span id="alsaSpeakerMuted">--</span></td>
+              </tr>
+              <tr>
+                <td scope="row">mike</td>
+                <td><span id="alsaMikeGain">--</span></td>
+                <td><span id="alsaMikeMuted">--</span></td>
+              </tr>
+              <tr>
+              <td scope="row">Speaker Gain</td>
+              <td colspan="2">
+                <input type="range" class="form-range" id="speakerGainSlider" min="0" max="100" value="50">
+              </td>
+              </tr>
+              <tr>
+              <td scope="row">Mike Gain</td>
+              <td colspan="2">
+                <input type="range" class="form-range" id="mikeGainSlider" min="0" max="100" value="50">
+              </td>
+              </tr>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>

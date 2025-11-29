@@ -52,7 +52,7 @@ class MixerThread:
             logger.warning("Mixer object is not initialized; cannot set volume.")
 
     @property
-    def muted(self) -> list[bool]:
+    def muted(self) -> bool:
         """Thread-safe getter for mute state."""
         with self.lock:
             return self._muted
@@ -81,14 +81,18 @@ class MixerThread:
             volume = mixer_obj.getvolume(units=aa.VOLUME_UNITS_PERCENTAGE)
             try:
                 muted = mixer_obj.getmute()
+                if type(muted) in (list, tuple):
+                    muted = all(muted)
+                else:
+                    muted = bool(muted)
             except aa.ALSAAudioError:
-                muted = [0] * len(volume)  # Assume not muted if unsupported
+                muted = False  # Assume not muted if unsupported
                 if not self.mute_warned:
                     logger.warning("Mixer does not support getmute(); assuming unmuted.")
                     self.mute_warned = True
             with self.lock:
                 self._volume = volume
-                self._muted = [bool(raw) for raw in muted]
+                self._muted = muted
 
             logging.info(
                 f"Mixer event detected! New Volume: {self._volume}%, Muted: {self._muted}"

@@ -43,6 +43,8 @@ class AlsaGainNode(Node):
             return
         percent = msg.percent
         muted = msg.muted
+        if msg.control != self.control or msg.device != self.device:
+            return
         if percent is None or muted is None:
             self.get_logger().warning("Invalid gain info received, ignoring set request.")
             return
@@ -57,12 +59,9 @@ class AlsaGainNode(Node):
             percent_changed = True
         if percent_changed:
             self.mixer_thread.volume = percent
-        muted = [bool(val) for val in muted]
         s_muted = self.mixer_thread.muted
         muted_changed = False
-        if len(s_muted) == len(muted) and s_muted != muted:
-            muted_changed = True
-        elif len(muted) == 1 and any(s_muted[i] != muted[0] for i in range(len(s_muted))):
+        if s_muted != muted:
             muted_changed = True
         if muted_changed:
             self.get_logger().info(f"Setting muted to {muted} compared to {self.mixer_thread.muted}")
