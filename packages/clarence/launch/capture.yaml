@@ -1,0 +1,31 @@
+%YAML 1.2
+---
+launch:
+  - node:
+      pkg: "audio_capture"
+      exec: "audio_capture_node"
+      name: "audio_capture"
+      output: "screen"
+      param:
+      -
+        name: device
+        value: "mike"
+      -
+        name: sample_rate
+        value: 16000
+      -
+        name: channels
+        value: 2
+      -
+        name: dst
+        value: appsink
+      -
+        name: format
+        value: mp3
+      -
+        name: audio_topic
+        value: "/audio_capture"
+      -
+        name: sample_format
+        value: S16LE
+
